@@ -56,57 +56,56 @@ bool IsCorrupted(struct pkt packet)
 
 /********* Sender (A) variables and functions ************/
 
-static struct pkt buffer[WINDOWSIZE];  /* array for storing packets waiting for ACK */
 static int windowfirst, windowlast;    /* array indexes of the first/last packet awaiting ACK */
 static int windowcount;                /* the number of packets currently awaiting an ACK */
 static bool acked[SR_WINDOWSIZE];     // tracks individual ACKs
 static int A_nextseqnum;               /* the next sequence number to be used by the sender */
 static struct pkt buffer[SR_WINDOWSIZE]; // already used for sender
+static struct pkt recv_buffer[SR_SEQSPACE];
+static bool received[SR_SEQSPACE];
 
 
-/* called from layer 5 (application layer), passed the message to be sent to other side */
 void A_output(struct msg message)
 {
   struct pkt sendpkt;
   int i;
 
   /* if not blocked waiting on ACK */
-  if ( windowcount < WINDOWSIZE) {
+  if (windowcount < SR_WINDOWSIZE) {
     if (TRACE > 1)
       printf("----A: New message arrives, send window is not full, send new messge to layer3!\n");
 
     /* create packet */
     sendpkt.seqnum = A_nextseqnum;
     sendpkt.acknum = NOTINUSE;
-    for ( i=0; i<20 ; i++ )
+    for (i = 0; i < 20; i++)
       sendpkt.payload[i] = message.data[i];
     sendpkt.checksum = ComputeChecksum(sendpkt);
 
     /* put packet in window buffer */
-    /* windowlast will always be 0 for alternating bit; but not for GoBackN */
-    windowlast = (windowlast + 1) % WINDOWSIZE;
+    windowlast = (windowlast + 1) % SR_WINDOWSIZE;
     buffer[windowlast] = sendpkt;
+    acked[windowlast] = false;  // ✅ ensure acked[] is reset
     windowcount++;
 
     /* send out packet */
     if (TRACE > 0)
       printf("Sending packet %d to layer 3\n", sendpkt.seqnum);
-    tolayer3 (A, sendpkt);
+    tolayer3(A, sendpkt);
 
     /* start timer if first packet in window */
     if (windowcount == 1)
-      starttimer(A,RTT);
+      starttimer(A, RTT);
 
     /* get next sequence number, wrap back to 0 */
-    A_nextseqnum = (A_nextseqnum + 1) % SEQSPACE;
-  }
-  /* if blocked,  window is full */
-  else {
+    A_nextseqnum = (A_nextseqnum + 1) % SR_SEQSPACE;
+  } else {
     if (TRACE > 0)
       printf("----A: New message arrives, send window is full\n");
     window_full++;
   }
 }
+
 
 
 void A_input(struct pkt packet)
@@ -201,13 +200,16 @@ void A_init(void)
   }
 }
 
+void B_init(void)
+{
+  expectedseqnum = 0;
+  for (int i = 0; i < SR_SEQSPACE; i++)
+    received[i] = false;
+}
 
 
 
 /********* Receiver (B)  variables and procedures ************/
-
-static int expectedseqnum; /* the sequence number expected next by the receiver */
-static int B_nextseqnum;   /* the sequence number for the next packets sent by B */
 
 
 void B_input(struct pkt packet)
