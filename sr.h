@@ -1,11 +1,15 @@
-extern void A_init(void);
-extern void B_init(void);
-extern void A_input(struct pkt);
-extern void B_input(struct pkt);
-extern void A_output(struct msg);
-extern void A_timerinterrupt(void);
+#ifndef SR_H
+#define SR_H
 
-/* included for extension to bidirectional communication */
-#define BIDIRECTIONAL 0       /*  0 = A->B  1 =  A<->B */
-extern void B_output(struct msg);
-extern void B_timerinterrupt(void);
+#define WINDOW_SIZE 10
+#define TIMEOUT 20.0
+
+void A_output(struct msg message);
+void A_input(struct pkt pkt);
+void A_timerinterrupt();
+void A_init();
+
+void B_input(struct pkt pkt);
+void B_init();
+
+#endif
