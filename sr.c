@@ -104,13 +104,12 @@ void A_input(struct pkt packet)
           acked[windowfirst] = false;
           windowfirst = (windowfirst + 1) % SR_WINDOWSIZE;
           windowcount--;
-          stoptimer(A);
-          if (windowcount > 0)
-            starttimer(A, RTT);
         }
-      } else {
-        if (TRACE > 0)
-          printf("----A: duplicate ACK received, do nothing!\n");
+        
+        if (windowcount > 0)
+          starttimer(A, RTT);
+        else
+          stoptimer(A);
       }
     }
   } else {
@@ -124,17 +123,16 @@ void A_timerinterrupt(void)
   if (TRACE > 0)
     printf("----A: timeout occurred, retransmitting first unacked packet\n");
 
-  for (int i = 0; i < windowcount; i++) {
-    int index = (windowfirst + i) % SR_WINDOWSIZE;
-    if (!acked[index]) {
-      tolayer3(A, buffer[index]);
-      if (TRACE > 0)
-        printf("----A: retransmitting packet %d\n", buffer[index].seqnum);
-      break;
-    }
+  int index = windowfirst;
+  if (!acked[index]) {
+    tolayer3(A, buffer[index]);
+    if (TRACE > 0)
+      printf("----A: retransmitting packet %d\n", buffer[index].seqnum);
   }
-  starttimer(A, RTT);
+
+  starttimer(A, RTT); // restart timer for the first unacked
 }
+
 
 void A_init(void)
 {
