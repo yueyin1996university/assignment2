@@ -63,6 +63,10 @@ static int A_nextseqnum;               /* the next sequence number to be used by
 static struct pkt buffer[SR_WINDOWSIZE]; // already used for sender
 static struct pkt recv_buffer[SR_SEQSPACE];
 static bool received[SR_SEQSPACE];
+static int total_retransmissions = 0;
+static int expectedseqnum;  // expected sequence number at receiver (B)
+
+
 
 
 void A_output(struct msg message)
