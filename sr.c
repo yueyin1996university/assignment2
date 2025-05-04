@@ -162,24 +162,27 @@ void A_input(struct pkt packet)
   }
 }
 
-/* called when A's timer goes off */
 void A_timerinterrupt(void)
 {
-  int i;
-
   if (TRACE > 0)
-    printf("----A: time out,resend packets!\n");
+    printf("----A: timeout occurred, retransmitting first unacked packet\n");
 
-  for(i=0; i<windowcount; i++) {
-
-    if (TRACE > 0)
-      printf ("---A: resending packet %d\n", (buffer[(windowfirst+i) % WINDOWSIZE]).seqnum);
-
-    tolayer3(A,buffer[(windowfirst+i) % WINDOWSIZE]);
-    packets_resent++;
-    if (i==0) starttimer(A,RTT);
+  // Find the first unACKed packet in the window
+  for (int i = 0; i < windowcount; i++) {
+    int index = (windowfirst + i) % SR_WINDOWSIZE;
+    if (!acked[index]) {
+      tolayer3(A, buffer[index]);
+      total_retransmissions++;
+      if (TRACE > 0)
+        printf("----A: retransmitting packet %d\n", buffer[index].seqnum);
+      break;
+    }
   }
+
+  // Restart the timer
+  starttimer(A, RTT);
 }
+
 
 
 
